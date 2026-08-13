@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -60,8 +61,12 @@ fun DetailScreen(
 ) {
     val shopFlow = remember(shopId) { repository.observeShop(shopId) }
     val factsFlow = remember(shopId) { repository.observeFacts(shopId) }
+    val photosFlow = remember(shopId) { repository.observePhotos(shopId) }
+    val menuFlow = remember(shopId) { repository.observeMenu(shopId) }
     val shop by shopFlow.collectAsState(initial = null)
     val facts by factsFlow.collectAsState(initial = emptyList())
+    val photos by photosFlow.collectAsState(initial = emptyList())
+    val menu by menuFlow.collectAsState(initial = emptyList())
     var tabIndex by remember { mutableIntStateOf(0) }
     var people by remember { mutableIntStateOf(1) }
     val scope = rememberCoroutineScope()
@@ -100,14 +105,25 @@ fun DetailScreen(
             return@Scaffold
         }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = tabIndex) {
+            ScrollableTabRow(selectedTabIndex = tabIndex, edgePadding = 0.dp) {
                 Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("情報") })
-                Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("根拠") })
+                Tab(
+                    selected = tabIndex == 1,
+                    onClick = { tabIndex = 1 },
+                    text = { Text("メニュー" + if (menu.isEmpty()) "" else " ${menu.size}") }
+                )
+                Tab(
+                    selected = tabIndex == 2,
+                    onClick = { tabIndex = 2 },
+                    text = { Text("写真" + if (photos.isEmpty()) "" else " ${photos.size}") }
+                )
+                Tab(selected = tabIndex == 3, onClick = { tabIndex = 3 }, text = { Text("根拠") })
             }
-            if (tabIndex == 0) {
-                InfoTab(current, people) { people = it }
-            } else {
-                FactTab(facts)
+            when (tabIndex) {
+                0 -> InfoTab(current, people) { people = it }
+                1 -> MenuTab(repository, shopId, menu)
+                2 -> PhotoTab(repository, shopId, photos)
+                else -> FactTab(facts)
             }
         }
     }

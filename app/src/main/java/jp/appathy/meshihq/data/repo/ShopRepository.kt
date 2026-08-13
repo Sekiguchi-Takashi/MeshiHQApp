@@ -1,7 +1,9 @@
 package jp.appathy.meshihq.data.repo
 
 import jp.appathy.meshihq.data.db.FactSource
+import jp.appathy.meshihq.data.db.MenuItem
 import jp.appathy.meshihq.data.db.MeshiDao
+import jp.appathy.meshihq.data.db.Photo
 import jp.appathy.meshihq.data.db.PendingChange
 import jp.appathy.meshihq.data.db.Shop
 import jp.appathy.meshihq.data.remote.OsmCandidate
@@ -53,6 +55,57 @@ class ShopRepository(private val dao: MeshiDao) {
         dao.insertFacts(facts)
         return shopId
     }
+
+    fun observePhotos(shopId: Long): Flow<List<Photo>> = dao.observePhotos(shopId)
+
+    fun observeMenu(shopId: Long): Flow<List<MenuItem>> = dao.observeMenu(shopId)
+
+    suspend fun getMenu(shopId: Long): List<MenuItem> = dao.getMenu(shopId)
+
+    suspend fun addPhoto(shopId: Long, path: String, kind: String, caption: String? = null) {
+        dao.insertPhoto(
+            Photo(
+                shopId = shopId,
+                path = path,
+                kind = kind,
+                caption = caption,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    /** 実ファイルの削除はUI側で行うため、消したパスを返す。 */
+    suspend fun removePhoto(id: Long): String? {
+        val photo = dao.getPhoto(id)
+        dao.deletePhoto(id)
+        return photo?.path
+    }
+
+    suspend fun addMenuItems(
+        shopId: Long,
+        entries: List<Pair<String, Int?>>,
+        sourceType: String,
+        section: String? = null
+    ) {
+        if (entries.isEmpty()) return
+        val now = System.currentTimeMillis()
+        dao.insertMenuItems(
+            entries.map { (name, price) ->
+                MenuItem(
+                    shopId = shopId,
+                    name = name,
+                    price = price,
+                    section = section,
+                    sourceType = sourceType,
+                    confidence = SourceType.confidenceOf(sourceType),
+                    createdAt = now,
+                    updatedAt = now
+                )
+            }
+        )
+    }
+
+    suspend fun deleteMenuItem(id: Long) = dao.deleteMenuItem(id)
 
     suspend fun toggleFavorite(shop: Shop) {
         dao.upsertShop(shop.copy(isFavorite = !shop.isFavorite, updatedAt = System.currentTimeMillis()))

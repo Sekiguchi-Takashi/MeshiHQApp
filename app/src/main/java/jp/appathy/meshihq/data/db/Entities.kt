@@ -85,3 +85,48 @@ data class PendingChange(
     val state: String = "pending",
     @ColumnInfo(name = "created_at") val createdAt: Long
 )
+
+@Entity(
+    tableName = "photo",
+    foreignKeys = [
+        ForeignKey(
+            entity = Shop::class,
+            parentColumns = ["id"],
+            childColumns = ["shop_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["shop_id"])]
+)
+data class Photo(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "shop_id") val shopId: Long,
+    val path: String,
+    val kind: String = "shop",
+    val caption: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long
+)
+
+@Entity(
+    tableName = "menu_item",
+    foreignKeys = [
+        ForeignKey(
+            entity = Shop::class,
+            parentColumns = ["id"],
+            childColumns = ["shop_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["shop_id"])]
+)
+data class MenuItem(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "shop_id") val shopId: Long,
+    val name: String,
+    val price: Int? = null,
+    val section: String? = null,
+    @ColumnInfo(name = "source_type") val sourceType: String,
+    val confidence: Double,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long
+)

@@ -75,4 +75,28 @@ interface MeshiDao {
 
     @Query("SELECT COUNT(*) FROM pending_change WHERE state = 'pending'")
     fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT * FROM photo WHERE shop_id = :shopId ORDER BY created_at DESC")
+    fun observePhotos(shopId: Long): Flow<List<Photo>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPhoto(photo: Photo): Long
+
+    @Query("SELECT * FROM photo WHERE id = :id")
+    suspend fun getPhoto(id: Long): Photo?
+
+    @Query("DELETE FROM photo WHERE id = :id")
+    suspend fun deletePhoto(id: Long)
+
+    @Query("SELECT * FROM menu_item WHERE shop_id = :shopId ORDER BY section, price, name")
+    fun observeMenu(shopId: Long): Flow<List<MenuItem>>
+
+    @Query("SELECT * FROM menu_item WHERE shop_id = :shopId ORDER BY section, price, name")
+    suspend fun getMenu(shopId: Long): List<MenuItem>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMenuItems(items: List<MenuItem>)
+
+    @Query("DELETE FROM menu_item WHERE id = :id")
+    suspend fun deleteMenuItem(id: Long)
 }

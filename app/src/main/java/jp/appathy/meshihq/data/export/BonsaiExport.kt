@@ -3,6 +3,7 @@ package jp.appathy.meshihq.data.export
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import jp.appathy.meshihq.data.db.MenuItem
 import jp.appathy.meshihq.data.db.Shop
 import jp.appathy.meshihq.domain.Budget
 import jp.appathy.meshihq.domain.OpeningHours
@@ -21,7 +22,12 @@ object BonsaiExport {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.JAPAN)
 
-    fun exportAll(context: Context, treeUri: Uri, shops: List<Shop>): Int {
+    fun exportAll(
+        context: Context,
+        treeUri: Uri,
+        shops: List<Shop>,
+        menus: Map<Long, List<MenuItem>> = emptyMap()
+    ): Int {
         val tree = DocumentFile.fromTreeUri(context, treeUri) ?: return 0
         var count = 0
         for (shop in shops) {
@@ -29,7 +35,7 @@ object BonsaiExport {
             tree.findFile(fileName)?.delete()
             val file = tree.createFile("text/markdown", fileName) ?: continue
             context.contentResolver.openOutputStream(file.uri)?.use { out ->
-                out.write(toMarkdown(shop).toByteArray(Charsets.UTF_8))
+                out.write(toMarkdown(shop, menus[shop.id].orEmpty()).toByteArray(Charsets.UTF_8))
             }
             count++
         }
@@ -37,7 +43,7 @@ object BonsaiExport {
         return count
     }
 
-    fun toMarkdown(shop: Shop): String {
+    fun toMarkdown(shop: Shop, menu: List<MenuItem> = emptyList()): String {
         val sb = StringBuilder()
         sb.append("---\n")
         sb.append("type: shop\n")
@@ -59,6 +65,14 @@ object BonsaiExport {
         line(sb, "予算（昼）", Budget.label(shop.budgetLunchMin, shop.budgetLunchMax))
         line(sb, "予算（夜）", Budget.label(shop.budgetDinnerMin, shop.budgetDinnerMax))
         line(sb, "お気に入り", if (shop.isFavorite) "はい" else "いいえ")
+        if (menu.isNotEmpty()) {
+            sb.append("\n## メニュー\n\n")
+            menu.forEach { item ->
+                sb.append("- ").append(item.name)
+                item.price?.let { sb.append(" ").append(it).append("円") }
+                sb.append('\n')
+            }
+        }
         if (!shop.memo.isNullOrBlank()) {
             sb.append("\n## メモ\n\n").append(shop.memo).append('\n')
         }

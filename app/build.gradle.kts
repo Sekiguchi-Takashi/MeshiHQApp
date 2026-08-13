@@ -12,8 +12,8 @@ android {
         applicationId = "jp.appathy.meshihq2"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.2.3"
+        versionCode = 7
+        versionName = "0.3"
     }
 
     signingConfigs {
@@ -73,4 +73,5 @@ dependencies {
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+    implementation("com.google.mlkit:text-recognition-japanese:16.0.0")
 }
