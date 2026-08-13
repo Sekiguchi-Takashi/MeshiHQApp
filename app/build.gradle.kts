@@ -12,13 +12,26 @@ android {
         applicationId = "jp.appathy.meshihq"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.2.1"
+        versionCode = 5
+        versionName = "0.2.2"
+    }
+
+    signingConfigs {
+        create("shared") {
+            storeFile = rootProject.file("keystore/meshihq.jks")
+            storePassword = "meshihq"
+            keyAlias = "meshihq"
+            keyPassword = "meshihq"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 

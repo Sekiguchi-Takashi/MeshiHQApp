@@ -41,5 +41,10 @@ v0.2（Overpass取込＋承認キュー＋opening_hours変換）。写真・メ�
 3. 来店履歴・統計・コレクション
 4. 取込のレート配慮（Overpassは連続実行を避ける。UI側で連打防止済みだが間隔の目安を入れる）
 
-## ビルド
-push すると GitHub Actions が debug APK を Artifacts に出す。
+## ビルド・署名
+push すると GitHub Actions が release APK（未minify）を Artifacts に出す。
+
+署名鍵は `keystore/meshihq.jks` をリポジトリに同梱し、debug/release とも同じ鍵で署名する（storePassword/keyPassword/alias すべて `meshihq`）。
+CIランナーの debug.keystore は実行ごとに作り直されるため、それに任せると毎回署名が変わり、上書きインストールが
+「INSTALL_FAILED_UPDATE_INCOMPATIBLE（署名が一致しません）」で失敗する。鍵を固定することでこれを回避している。
+配布用の鍵ではないので、ストア公開する段階になったら別の鍵に差し替えること。
