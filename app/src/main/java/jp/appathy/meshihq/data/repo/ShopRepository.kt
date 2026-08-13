@@ -100,7 +100,7 @@ class ShopRepository(private val dao: MeshiDao) {
                 continue
             }
 
-            var working = existing
+            var working: Shop = existing
             var changed = false
             val queued = mutableListOf<PendingChange>()
             val newFacts = mutableListOf<FactSource>()
