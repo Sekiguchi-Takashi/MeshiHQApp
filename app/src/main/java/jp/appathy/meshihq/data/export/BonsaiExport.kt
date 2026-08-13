@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import jp.appathy.meshihq.data.db.Shop
 import jp.appathy.meshihq.domain.Budget
+import jp.appathy.meshihq.domain.OpeningHours
 import jp.appathy.meshihq.domain.ShopStatus
 import org.json.JSONArray
 import org.json.JSONObject
@@ -53,7 +54,7 @@ object BonsaiExport {
         sb.append("# ").append(shop.name).append("（").append(shop.category).append("）\n\n")
         line(sb, "住所", shop.address)
         line(sb, "電話", shop.phone)
-        line(sb, "営業時間", shop.openingHours ?: shop.openingHoursRaw)
+        line(sb, "営業時間", OpeningHours.format(shop.openingHours)?.replace("\n", " / ") ?: shop.openingHoursRaw)
         line(sb, "定休日", shop.closedDays)
         line(sb, "予算（昼）", Budget.label(shop.budgetLunchMin, shop.budgetLunchMax))
         line(sb, "予算（夜）", Budget.label(shop.budgetDinnerMin, shop.budgetDinnerMax))

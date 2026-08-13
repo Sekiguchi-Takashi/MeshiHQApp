@@ -2,6 +2,7 @@ package jp.appathy.meshihq.ui.nav
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Settings
@@ -24,12 +25,14 @@ import jp.appathy.meshihq.data.repo.ShopRepository
 import jp.appathy.meshihq.ui.detail.DetailScreen
 import jp.appathy.meshihq.ui.edit.EditScreen
 import jp.appathy.meshihq.ui.home.HomeScreen
+import jp.appathy.meshihq.ui.import_.ImportScreen
 import jp.appathy.meshihq.ui.map.MapScreen
 import jp.appathy.meshihq.ui.settings.SettingsScreen
 
 enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "ホーム", Icons.Filled.Home),
     MAP("map", "地図", Icons.Filled.Map),
+    IMPORT("import", "取込", Icons.Filled.CloudDownload),
     SETTINGS("settings", "設定", Icons.Filled.Settings)
 }
 
@@ -41,11 +44,12 @@ fun MeshiNavHost(repository: ShopRepository) {
 
     Scaffold(
         bottomBar = {
-            if (currentRoute != null && Tab.entries.any { it.route == currentRoute }) {
+            val routeBase = currentRoute?.substringBefore("?")
+            if (routeBase != null && Tab.entries.any { it.route == routeBase }) {
                 NavigationBar {
                     Tab.entries.forEach { tab ->
                         NavigationBarItem(
-                            selected = currentRoute == tab.route,
+                            selected = routeBase == tab.route,
                             onClick = {
                                 navController.navigate(tab.route) {
                                     popUpTo(Tab.HOME.route)
@@ -78,7 +82,24 @@ fun MeshiNavHost(repository: ShopRepository) {
                     onOpenShop = { navController.navigate("detail/$it") },
                     onNewShopAt = { lat, lon ->
                         navController.navigate("edit?id=0&lat=$lat&lon=$lon")
+                    },
+                    onImportHere = { lat, lon ->
+                        navController.navigate("import?lat=$lat&lon=$lon")
                     }
+                )
+            }
+            composable(
+                route = "import?lat={lat}&lon={lon}",
+                arguments = listOf(
+                    navArgument("lat") { type = NavType.FloatType; defaultValue = 0f },
+                    navArgument("lon") { type = NavType.FloatType; defaultValue = 0f }
+                )
+            ) { entry ->
+                ImportScreen(
+                    repository = repository,
+                    centerLat = entry.arguments?.getFloat("lat")?.toDouble() ?: 0.0,
+                    centerLon = entry.arguments?.getFloat("lon")?.toDouble() ?: 0.0,
+                    onOpenShop = { navController.navigate("detail/$it") }
                 )
             }
             composable(Tab.SETTINGS.route) {

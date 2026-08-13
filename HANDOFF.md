@@ -4,7 +4,7 @@
 近所の飲食店を自分のDBに貯めて管理するAndroidアプリ。オントロジー「飲食店マップ管理アプリ」の実装第一弾。
 
 ## 現在地点
-v0.1（地図＋店舗登録＋店舗詳細、手入力のみ）。
+v0.2（Overpass取込＋承認キュー＋opening_hours変換）。写真・メニュー・OCRは未実装。
 
 ## 決定事項
 - カテゴリは固定16種（和食／中華／寿司／焼肉／しゃぶしゃぶ／イタリアン／ピザ専門／ファミレス／ラーメン／たこ焼き／うどん／ハンバーガー／アイス／カフェ／居酒屋／その他）。`domain/Model.kt` の `Categories.ALL` が唯一の定義元
@@ -24,11 +24,22 @@ v0.1（地図＋店舗登録＋店舗詳細、手入力のみ）。
 - `data/export/BonsaiExport.kt` … Markdown資料とJSONの書き出し・取り込み
 - `ui/` … home / map / detail / edit / settings
 
-## 次にやること（v0.2）
-1. Overpass API による近隣一括取込。`osm_id` のUNIQUE制約で重複を防ぐ
-2. 取込値は confidence 0.6。既存値が self_visit のときは上書きせず `pending_change` に積む
-3. 写真管理とメニュー管理、ML Kit 日本語OCRでのメニュー取込
-4. OSM `opening_hours` → 内部JSONへの変換。失敗したら `opening_hours_raw` に原文退避
+## v0.2で入ったもの
+- `data/remote/OverpassClient.kt` … Overpass APIへPOST。amenity=restaurant/cafe/fast_food/pub/bar/ice_cream かつ name 付きのみ取得
+- `OsmCategory` … OSMの cuisine / amenity から固定16カテゴリへ写像
+- `domain/OpeningHours.kt` … OSMの opening_hours を内部JSONへ変換（Mo-Fr 形式、複数スパン、off に対応）。失敗時は null を返し原文を raw に退避
+- `ShopRepository.importFromOsm()` … 新規追加／自動更新／承認待ちの振り分け。既存店の同定は osm_id、無ければ同名かつ80m以内
+- `ui/import_/ImportScreen.kt` … 取込タブ。半径選択、取込実行、承認待ちの承認・却下
+
+### 更新判定の実装
+値ごとに `fact_source` の最良信頼度を引き、OSMの0.6がそれ以上なら自動更新。下回れば `pending_change` に積む。
+既存値が空のときは無条件で埋める。自分で入力した値（1.0）は必ず承認待ち経由になる。
+
+## 次にやること（v0.3）
+1. 写真管理（端末ギャラリー取込、店舗ひも付け）
+2. メニュー管理と ML Kit 日本語OCRでのメニュー取込
+3. 来店履歴・統計・コレクション
+4. 取込のレート配慮（Overpassは連続実行を避ける。UI側で連打防止済みだが間隔の目安を入れる）
 
 ## ビルド
 push すると GitHub Actions が debug APK を Artifacts に出す。

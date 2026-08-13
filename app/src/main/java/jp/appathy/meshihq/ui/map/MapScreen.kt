@@ -11,6 +11,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -36,10 +37,12 @@ import org.osmdroid.views.overlay.Marker
 fun MapScreen(
     repository: ShopRepository,
     onOpenShop: (Long) -> Unit,
-    onNewShopAt: (Double, Double) -> Unit
+    onNewShopAt: (Double, Double) -> Unit,
+    onImportHere: (Double, Double) -> Unit
 ) {
     val context = LocalContext.current
-    val shops by repository.observeShops().collectAsState(initial = emptyList())
+    val shopsFlow = remember { repository.observeShops() }
+    val shops by shopsFlow.collectAsState(initial = emptyList())
 
     val mapView = remember {
         MapView(context).apply {
@@ -60,7 +63,19 @@ fun MapScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("地図（長押しで新規登録）") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("地図（長押しで新規登録）") },
+                actions = {
+                    TextButton(onClick = {
+                        val center = mapView.mapCenter
+                        onImportHere(center.latitude, center.longitude)
+                    }) {
+                        Text("この範囲を取込")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 val here = LocationUtil.lastKnown(context)

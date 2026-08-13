@@ -43,4 +43,36 @@ interface MeshiDao {
 
     @Query("SELECT * FROM pending_change WHERE state = 'pending' ORDER BY created_at DESC")
     fun observePendingChanges(): Flow<List<PendingChange>>
+
+    @Query("SELECT * FROM shop WHERE osm_id = :osmId LIMIT 1")
+    suspend fun getShopByOsmId(osmId: String): Shop?
+
+    @Query(
+        "SELECT * FROM shop WHERE lat BETWEEN :minLat AND :maxLat " +
+            "AND lon BETWEEN :minLon AND :maxLon"
+    )
+    suspend fun getShopsInBounds(
+        minLat: Double,
+        maxLat: Double,
+        minLon: Double,
+        maxLon: Double
+    ): List<Shop>
+
+    @Query(
+        "SELECT * FROM fact_source WHERE shop_id = :shopId AND field_name = :field " +
+            "ORDER BY confidence DESC, observed_at DESC LIMIT 1"
+    )
+    suspend fun bestFact(shopId: Long, field: String): FactSource?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPending(changes: List<PendingChange>)
+
+    @Query("SELECT * FROM pending_change WHERE id = :id")
+    suspend fun getPending(id: Long): PendingChange?
+
+    @Query("UPDATE pending_change SET state = :state WHERE id = :id")
+    suspend fun setPendingState(id: Long, state: String)
+
+    @Query("SELECT COUNT(*) FROM pending_change WHERE state = 'pending'")
+    fun observePendingCount(): Flow<Int>
 }

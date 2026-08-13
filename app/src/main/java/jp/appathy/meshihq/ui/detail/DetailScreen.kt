@@ -42,6 +42,7 @@ import jp.appathy.meshihq.data.db.FactSource
 import jp.appathy.meshihq.data.db.Shop
 import jp.appathy.meshihq.data.repo.ShopRepository
 import jp.appathy.meshihq.domain.Budget
+import jp.appathy.meshihq.domain.OpeningHours
 import jp.appathy.meshihq.domain.ShopStatus
 import jp.appathy.meshihq.domain.SourceType
 import kotlinx.coroutines.launch
@@ -125,7 +126,7 @@ private fun InfoTab(shop: Shop, people: Int, onPeopleChange: (Int) -> Unit) {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         InfoRow("住所", shop.address)
         InfoRow("電話", shop.phone)
-        InfoRow("営業時間", shop.openingHours ?: shop.openingHoursRaw)
+        InfoRow("営業時間", OpeningHours.format(shop.openingHours) ?: shop.openingHoursRaw)
         InfoRow("定休日", shop.closedDays)
         InfoRow("座標", "%.5f, %.5f".format(shop.lat, shop.lon))
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
