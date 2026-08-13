@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.MeshiHQ" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
