@@ -87,16 +87,28 @@ fun VisitTab(repository: ShopRepository, shopId: Long, visits: List<Visit>) {
     }
 
     if (showDialog) {
+        var dayOffset by remember { mutableIntStateOf(0) }
         var people by remember { mutableIntStateOf(1) }
         var rating by remember { mutableIntStateOf(0) }
         var amount by remember { mutableStateOf("") }
         var memo by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("来店を記録（今日）") },
+            title = { Text("来店を記録") },
             text = {
                 Column {
-                    Text("人数", style = MaterialTheme.typography.bodySmall)
+                    Text("日付", style = MaterialTheme.typography.bodySmall)
+                    Row {
+                        listOf(0 to "今日", 1 to "昨日", 2 to "2日前", 3 to "3日前").forEach { option ->
+                            FilterChip(
+                                selected = dayOffset == option.first,
+                                onClick = { dayOffset = option.first },
+                                label = { Text(option.second) },
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        }
+                    }
+                    Text("人数", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                     Row {
                         (1..6).forEach { n ->
                             FilterChip(
@@ -138,7 +150,7 @@ fun VisitTab(repository: ShopRepository, shopId: Long, visits: List<Visit>) {
                     scope.launch {
                         repository.addVisit(
                             shopId = shopId,
-                            visitedAt = System.currentTimeMillis(),
+                            visitedAt = System.currentTimeMillis() - dayOffset * 86_400_000L,
                             people = people,
                             amount = amount.trim().toIntOrNull(),
                             rating = rating.takeIf { it > 0 },

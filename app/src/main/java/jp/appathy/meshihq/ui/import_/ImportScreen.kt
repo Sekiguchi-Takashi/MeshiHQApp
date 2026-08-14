@@ -85,6 +85,11 @@ fun ImportScreen(
                 Button(
                     enabled = !running,
                     onClick = {
+                        val since = System.currentTimeMillis() - Prefs.lastImportAt(context)
+                        if (since < 60_000) {
+                            message = "前回の取込から${since / 1000}秒しか経っていません。" +
+                                "Overpassは公共サーバなので、1分ほど空けてから実行してください。"
+                        } else {
                         running = true
                         message = ""
                         scope.launch {
@@ -101,6 +106,7 @@ fun ImportScreen(
                                 null
                             }
                             running = false
+                            Prefs.setLastImportAt(context, System.currentTimeMillis())
                             message = if (result == null) {
                                 "取込に失敗しました。通信状況を確認して、少し時間をおいて再試行してください。"
                             } else {
@@ -108,6 +114,7 @@ fun ImportScreen(
                                 "候補${found}件：新規${summary.added} / 更新${summary.updated} / " +
                                     "承認待ち${summary.pending} / 変更なし${summary.untouched}"
                             }
+                        }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()

@@ -66,13 +66,20 @@ class ShopRepository(private val dao: MeshiDao) {
 
     suspend fun getMenu(shopId: Long): List<MenuItem> = dao.getMenu(shopId)
 
-    suspend fun addPhoto(shopId: Long, path: String, kind: String, caption: String? = null) {
+    suspend fun addPhoto(
+        shopId: Long,
+        path: String,
+        kind: String,
+        takenAt: Long? = null,
+        caption: String? = null
+    ) {
         dao.insertPhoto(
             Photo(
                 shopId = shopId,
                 path = path,
                 kind = kind,
                 caption = caption,
+                takenAt = takenAt,
                 createdAt = System.currentTimeMillis()
             )
         )

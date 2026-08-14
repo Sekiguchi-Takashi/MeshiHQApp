@@ -104,6 +104,7 @@ data class Photo(
     val path: String,
     val kind: String = "shop",
     val caption: String? = null,
+    @ColumnInfo(name = "taken_at") val takenAt: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long
 )
 

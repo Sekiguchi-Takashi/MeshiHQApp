@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -53,22 +54,42 @@ fun StatsScreen(repository: ShopRepository, onOpenShop: (Long) -> Unit) {
     var openedCollection by remember { mutableStateOf<Long?>(null) }
     var members by remember { mutableStateOf<List<Shop>>(emptyList()) }
 
+    var period by remember { mutableStateOf("all") }
     val monthFormat = remember { SimpleDateFormat("yyyy/MM", Locale.JAPAN) }
+    val periodStart = remember(period) {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        when (period) {
+            "month" -> {
+                calendar.set(java.util.Calendar.DAY_OF_MONTH, 1)
+                calendar.timeInMillis
+            }
+            "year" -> {
+                calendar.set(java.util.Calendar.DAY_OF_YEAR, 1)
+                calendar.timeInMillis
+            }
+            else -> 0L
+        }
+    }
     val shopNames = remember(shops) { shops.associate { it.id to it.name } }
     val byCategory = remember(shops) {
         shops.groupBy { it.category }.map { it.key to it.value.size }.sortedByDescending { it.second }
     }
-    val byMonth = remember(visits) {
-        visits.groupBy { monthFormat.format(Date(it.visitedAt)) }
+    val scoped = remember(visits, periodStart) { visits.filter { it.visitedAt >= periodStart } }
+    val byMonth = remember(scoped) {
+        scoped.groupBy { monthFormat.format(Date(it.visitedAt)) }
             .map { it.key to it.value.size }
             .sortedByDescending { it.first }
             .take(6)
     }
-    val frequent = remember(visits) {
-        visits.groupBy { it.shopId }.map { it.key to it.value.size }
+    val frequent = remember(scoped) {
+        scoped.groupBy { it.shopId }.map { it.key to it.value.size }
             .sortedByDescending { it.second }.take(5)
     }
-    val totalSpend = remember(visits) { visits.mapNotNull { it.amount }.sum() }
+    val totalSpend = remember(scoped) { scoped.mapNotNull { it.amount }.sum() }
 
     LaunchedEffect(openedCollection) {
         val id = openedCollection
@@ -80,8 +101,21 @@ fun StatsScreen(repository: ShopRepository, onOpenShop: (Long) -> Unit) {
             item {
                 Card(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("登録 ${shops.size}店 ・ 来店 ${visits.size}回", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "登録 ${shops.size}店 ・ 来店 ${scoped.size}回",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                         Text("支払い合計 ${totalSpend}円", style = MaterialTheme.typography.bodyMedium)
+                        Row(modifier = Modifier.padding(top = 8.dp)) {
+                            listOf("month" to "今月", "year" to "今年", "all" to "全期間").forEach { option ->
+                                FilterChip(
+                                    selected = period == option.first,
+                                    onClick = { period = option.first },
+                                    label = { Text(option.second) },
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

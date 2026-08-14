@@ -41,6 +41,14 @@ object Prefs {
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
             .getFloat("def_lon", 139.7671f).toDouble()
 
+    fun lastImportAt(context: Context): Long =
+        context.getSharedPreferences(NAME, Context.MODE_PRIVATE).getLong("last_import", 0L)
+
+    fun setLastImportAt(context: Context, value: Long) {
+        context.getSharedPreferences(NAME, Context.MODE_PRIVATE).edit()
+            .putLong("last_import", value).apply()
+    }
+
     fun setDefaultCenter(context: Context, lat: Double, lon: Double) {
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE).edit()
             .putFloat("def_lat", lat.toFloat())

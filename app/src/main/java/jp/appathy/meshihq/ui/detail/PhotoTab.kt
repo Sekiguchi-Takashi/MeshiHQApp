@@ -37,10 +37,14 @@ import jp.appathy.meshihq.data.repo.ShopRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun PhotoTab(repository: ShopRepository, shopId: Long, photos: List<Photo>) {
     val context = LocalContext.current
+    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd", Locale.JAPAN) }
     val scope = rememberCoroutineScope()
     var kind by remember { mutableStateOf("shop") }
     var busy by remember { mutableStateOf(false) }
@@ -51,8 +55,8 @@ fun PhotoTab(repository: ShopRepository, shopId: Long, photos: List<Photo>) {
         if (uri == null) return@rememberLauncherForActivityResult
         busy = true
         scope.launch {
-            val path = withContext(Dispatchers.IO) { PhotoStore.save(context, uri, shopId) }
-            if (path != null) repository.addPhoto(shopId, path, kind)
+            val saved = withContext(Dispatchers.IO) { PhotoStore.save(context, uri, shopId) }
+            if (saved != null) repository.addPhoto(shopId, saved.path, kind, saved.takenAt)
             busy = false
         }
     }
@@ -95,14 +99,33 @@ fun PhotoTab(repository: ShopRepository, shopId: Long, photos: List<Photo>) {
                 Card(modifier = Modifier.padding(4.dp)) {
                     Column {
                         Thumbnail(photo.path)
+                        Text(
+                            (if (photo.kind == "menu") "メニュー表" else "外観・料理") +
+                                (photo.takenAt?.let { " ・ " + dateFormat.format(Date(it)) } ?: ""),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                if (photo.kind == "menu") "メニュー表" else "外観・料理",
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            TextButton(
+                                enabled = photo.takenAt != null,
+                                onClick = {
+                                    photo.takenAt?.let { takenAt ->
+                                        scope.launch {
+                                            repository.addVisit(
+                                                shopId = shopId,
+                                                visitedAt = takenAt,
+                                                people = 1,
+                                                amount = null,
+                                                rating = null,
+                                                memo = "写真の撮影日から記録"
+                                            )
+                                        }
+                                    }
+                                }
+                            ) { Text("来店に") }
                             TextButton(onClick = {
                                 scope.launch {
                                     val path = repository.removePhoto(photo.id)
