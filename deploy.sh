@@ -1,10 +1,8 @@
 #!/bin/bash
-set -e
 cd "$(dirname "$0")"
 
 REPO=MeshiHQApp
 OWNER=Sekiguchi-Takashi
-MSG="${1:-update}"
 TOKEN=$(git config --global github.token)
 
 curl -s -o /dev/null -X POST \
@@ -20,12 +18,10 @@ fi
 git config user.name "$OWNER"
 git config user.email "$OWNER@users.noreply.github.com"
 
-git remote remove origin 2>/dev/null || true
+git remote remove origin 2>/dev/null
 git remote add origin "https://$TOKEN@github.com/$OWNER/$REPO.git"
 
 git add -A
-git commit -m "$MSG" || true
-
-git pull --rebase origin main || true
-
+git commit -m "${1:-update}"
+git pull --rebase origin main
 git push -u origin main

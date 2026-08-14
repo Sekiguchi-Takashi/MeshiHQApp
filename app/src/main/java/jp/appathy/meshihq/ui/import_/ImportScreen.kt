@@ -141,7 +141,7 @@ fun ImportScreen(
             }
             HorizontalDivider()
             Text(
-                "承認待ち " + (if (pending.isEmpty()) "なし" else "${pending.size}件"),
+                if (pending.isEmpty()) "承認待ちはありません" else "承認待ち ${pending.size}件",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
             )
