@@ -84,7 +84,15 @@ push とタグ発行までを1コマンドで完結させる形に固定。sheba
 最新リリースのタグ末尾を +1 したタグを GitHub API で打ち、Actions のビルドと自作アプリストアへの反映につなげる。
 `ci/` と `.github/workflows/release.yml` は削除しないこと。ZIPには同梱していないが、pull で降りてきたものを維持する。
 
-## ビルド・署名
+## ビルドの2レーン（v1.3.4以降）
+- **配布**: タグ push → release.yml が `assembleRelease` → `apksigner` で `ci/appathy.keystore`
+  （pass: appathy-store / alias: appathy）に署名し直して Release を作る。
+  したがって release ビルドに signingConfig は設定しない（未署名で出し、Actions側で署名する）
+- **手元確認**: 通常 push → build.yml が `assembleDebug`。`keystore/meshihq.jks` で署名し、
+  applicationId に `.debug` を付けるので配布版と共存できる（データは別）
+- versionName はタグ系列に合わせる。次のタグは v1.3.4 の想定
+
+## 旧ビルド・署名メモ
 push すると GitHub Actions が release APK（未minify）を Artifacts に出す。
 
 署名鍵は `keystore/meshihq.jks` をリポジトリに同梱し、debug/release とも同じ鍵で署名する（storePassword/keyPassword/alias すべて `meshihq`）。
