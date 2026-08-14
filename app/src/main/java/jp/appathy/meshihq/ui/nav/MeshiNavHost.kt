@@ -2,6 +2,7 @@ package jp.appathy.meshihq.ui.nav
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
@@ -28,11 +29,13 @@ import jp.appathy.meshihq.ui.home.HomeScreen
 import jp.appathy.meshihq.ui.import_.ImportScreen
 import jp.appathy.meshihq.ui.map.MapScreen
 import jp.appathy.meshihq.ui.settings.SettingsScreen
+import jp.appathy.meshihq.ui.stats.StatsScreen
 
 enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "ホーム", Icons.Filled.Home),
     MAP("map", "地図", Icons.Filled.Map),
     IMPORT("import", "取込", Icons.Filled.CloudDownload),
+    STATS("stats", "記録", Icons.Filled.BarChart),
     SETTINGS("settings", "設定", Icons.Filled.Settings)
 }
 
@@ -99,6 +102,12 @@ fun MeshiNavHost(repository: ShopRepository) {
                     repository = repository,
                     centerLat = entry.arguments?.getFloat("lat")?.toDouble() ?: 0.0,
                     centerLon = entry.arguments?.getFloat("lon")?.toDouble() ?: 0.0,
+                    onOpenShop = { navController.navigate("detail/$it") }
+                )
+            }
+            composable(Tab.STATS.route) {
+                StatsScreen(
+                    repository = repository,
                     onOpenShop = { navController.navigate("detail/$it") }
                 )
             }

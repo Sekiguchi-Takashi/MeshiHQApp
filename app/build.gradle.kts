@@ -12,8 +12,8 @@ android {
         applicationId = "jp.appathy.meshihq2"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.3"
+        versionCode = 8
+        versionName = "0.4"
     }
 
     signingConfigs {

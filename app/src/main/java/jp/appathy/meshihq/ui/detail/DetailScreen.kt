@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -39,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import jp.appathy.meshihq.data.db.Collection
 import jp.appathy.meshihq.data.db.FactSource
 import jp.appathy.meshihq.data.db.Shop
 import jp.appathy.meshihq.data.repo.ShopRepository
@@ -61,12 +63,18 @@ fun DetailScreen(
 ) {
     val shopFlow = remember(shopId) { repository.observeShop(shopId) }
     val factsFlow = remember(shopId) { repository.observeFacts(shopId) }
+    val visitsFlow = remember(shopId) { repository.observeVisits(shopId) }
+    val collectionsFlow = remember { repository.observeCollections() }
+    val memberFlow = remember(shopId) { repository.observeCollectionIds(shopId) }
     val photosFlow = remember(shopId) { repository.observePhotos(shopId) }
     val menuFlow = remember(shopId) { repository.observeMenu(shopId) }
     val shop by shopFlow.collectAsState(initial = null)
     val facts by factsFlow.collectAsState(initial = emptyList())
     val photos by photosFlow.collectAsState(initial = emptyList())
     val menu by menuFlow.collectAsState(initial = emptyList())
+    val visits by visitsFlow.collectAsState(initial = emptyList())
+    val collections by collectionsFlow.collectAsState(initial = emptyList())
+    val memberIds by memberFlow.collectAsState(initial = emptyList())
     var tabIndex by remember { mutableIntStateOf(0) }
     var people by remember { mutableIntStateOf(1) }
     val scope = rememberCoroutineScope()
@@ -117,12 +125,29 @@ fun DetailScreen(
                     onClick = { tabIndex = 2 },
                     text = { Text("写真" + if (photos.isEmpty()) "" else " ${photos.size}") }
                 )
-                Tab(selected = tabIndex == 3, onClick = { tabIndex = 3 }, text = { Text("根拠") })
+                Tab(
+                    selected = tabIndex == 3,
+                    onClick = { tabIndex = 3 },
+                    text = { Text("来店" + if (visits.isEmpty()) "" else " ${visits.size}") }
+                )
+                Tab(selected = tabIndex == 4, onClick = { tabIndex = 4 }, text = { Text("根拠") })
             }
             when (tabIndex) {
-                0 -> InfoTab(current, people) { people = it }
+                0 -> InfoTab(
+                    shop = current,
+                    people = people,
+                    collections = collections,
+                    memberIds = memberIds,
+                    onPeopleChange = { people = it },
+                    onToggleCollection = { collectionId, member ->
+                        scope.launch {
+                            repository.setCollectionMembership(collectionId, shopId, member)
+                        }
+                    }
+                )
                 1 -> MenuTab(repository, shopId, menu)
                 2 -> PhotoTab(repository, shopId, photos)
+                3 -> VisitTab(repository, shopId, visits)
                 else -> FactTab(facts)
             }
         }
@@ -131,7 +156,14 @@ fun DetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun InfoTab(shop: Shop, people: Int, onPeopleChange: (Int) -> Unit) {
+private fun InfoTab(
+    shop: Shop,
+    people: Int,
+    collections: List<Collection>,
+    memberIds: List<Long>,
+    onPeopleChange: (Int) -> Unit,
+    onToggleCollection: (Long, Boolean) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -169,6 +201,31 @@ private fun InfoTab(shop: Shop, people: Int, onPeopleChange: (Int) -> Unit) {
             Budget.label(shop.budgetDinnerMin, shop.budgetDinnerMax) +
                 " → 合計 " + Budget.total(shop.budgetDinnerMin, shop.budgetDinnerMax, people)
         )
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        Text("コレクション", style = MaterialTheme.typography.titleSmall)
+        if (collections.isEmpty()) {
+            Text(
+                "記録タブでコレクションを作ると、ここから登録できます。",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            collections.forEach { collection ->
+                val member = memberIds.contains(collection.id)
+                FilterChip(
+                    selected = member,
+                    onClick = { onToggleCollection(collection.id, !member) },
+                    label = { Text(collection.name) }
+                )
+            }
+        }
         if (!shop.memo.isNullOrBlank()) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             Text("メモ", style = MaterialTheme.typography.titleSmall)

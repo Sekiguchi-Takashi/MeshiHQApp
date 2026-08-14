@@ -1,11 +1,15 @@
 package jp.appathy.meshihq.data.repo
 
 import jp.appathy.meshihq.data.db.FactSource
+import jp.appathy.meshihq.data.db.Collection
+import jp.appathy.meshihq.data.db.CollectionCount
+import jp.appathy.meshihq.data.db.CollectionShop
 import jp.appathy.meshihq.data.db.MenuItem
 import jp.appathy.meshihq.data.db.MeshiDao
 import jp.appathy.meshihq.data.db.Photo
 import jp.appathy.meshihq.data.db.PendingChange
 import jp.appathy.meshihq.data.db.Shop
+import jp.appathy.meshihq.data.db.Visit
 import jp.appathy.meshihq.data.remote.OsmCandidate
 import jp.appathy.meshihq.data.remote.OsmCategory
 import jp.appathy.meshihq.domain.Geo
@@ -89,8 +93,13 @@ class ShopRepository(private val dao: MeshiDao) {
     ) {
         if (entries.isEmpty()) return
         val now = System.currentTimeMillis()
+        val existing = dao.getMenu(shopId)
+        val fresh = entries.filter { (name, price) ->
+            existing.none { it.name.trim() == name.trim() && (price == null || it.price == price) }
+        }
+        if (fresh.isEmpty()) return
         dao.insertMenuItems(
-            entries.map { (name, price) ->
+            fresh.map { (name, price) ->
                 MenuItem(
                     shopId = shopId,
                     name = name,
@@ -106,6 +115,77 @@ class ShopRepository(private val dao: MeshiDao) {
     }
 
     suspend fun deleteMenuItem(id: Long) = dao.deleteMenuItem(id)
+
+    /**
+     * 同じ品名が複数あるとき、価格の入っているものを1件だけ残す。
+     * 同じメニュー表を撮り直したときに増えるのを畳む。
+     */
+    suspend fun mergeDuplicateMenu(shopId: Long): Int {
+        val items = dao.getMenu(shopId)
+        var removed = 0
+        items.groupBy { it.name.trim() }.forEach { (_, group) ->
+            if (group.size <= 1) return@forEach
+            val keep = group.firstOrNull { it.price != null } ?: group.first()
+            group.filter { it.id != keep.id }.forEach { duplicate ->
+                dao.deleteMenuItem(duplicate.id)
+                removed++
+            }
+        }
+        return removed
+    }
+
+    fun observeVisits(shopId: Long): Flow<List<Visit>> = dao.observeVisits(shopId)
+
+    fun observeAllVisits(): Flow<List<Visit>> = dao.observeAllVisits()
+
+    suspend fun addVisit(
+        shopId: Long,
+        visitedAt: Long,
+        people: Int,
+        amount: Int?,
+        rating: Int?,
+        memo: String?
+    ) {
+        val now = System.currentTimeMillis()
+        dao.insertVisit(
+            Visit(
+                shopId = shopId,
+                visitedAt = visitedAt,
+                people = people,
+                amount = amount,
+                rating = rating,
+                memo = memo,
+                createdAt = now
+            )
+        )
+        val shop = dao.getShop(shopId)
+        if (shop != null && shop.status != "active") {
+            dao.upsertShop(shop.copy(status = "active", updatedAt = now))
+        }
+    }
+
+    suspend fun deleteVisit(id: Long) = dao.deleteVisit(id)
+
+    fun observeCollections(): Flow<List<Collection>> = dao.observeCollections()
+
+    fun observeCollectionCounts(): Flow<List<CollectionCount>> = dao.observeCollectionCounts()
+
+    fun observeCollectionIds(shopId: Long): Flow<List<Long>> = dao.observeCollectionIds(shopId)
+
+    suspend fun createCollection(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        dao.insertCollection(Collection(name = trimmed, createdAt = System.currentTimeMillis()))
+    }
+
+    suspend fun deleteCollection(id: Long) = dao.deleteCollection(id)
+
+    suspend fun setCollectionMembership(collectionId: Long, shopId: Long, member: Boolean) {
+        if (member) dao.linkCollection(CollectionShop(collectionId, shopId))
+        else dao.unlinkCollection(collectionId, shopId)
+    }
+
+    suspend fun shopsInCollection(collectionId: Long): List<Shop> = dao.shopsInCollection(collectionId)
 
     suspend fun toggleFavorite(shop: Shop) {
         dao.upsertShop(shop.copy(isFavorite = !shop.isFavorite, updatedAt = System.currentTimeMillis()))

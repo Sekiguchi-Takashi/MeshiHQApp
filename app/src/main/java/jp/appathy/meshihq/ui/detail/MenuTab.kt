@@ -85,6 +85,20 @@ fun MenuTab(repository: ShopRepository, shopId: Long, menu: List<MenuItem>) {
                 Text(if (reading) "読み取り中" else "写真から読み取る")
             }
         }
+        if (menu.size > 1) {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        val removed = repository.mergeDuplicateMenu(shopId)
+                        message = if (removed == 0) "重複はありませんでした。"
+                        else "${removed}件の重複を整理しました。"
+                    }
+                },
+                modifier = Modifier.padding(start = 12.dp)
+            ) {
+                Text("重複を整理")
+            }
+        }
         if (message.isNotBlank()) {
             Text(message, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp))
         }

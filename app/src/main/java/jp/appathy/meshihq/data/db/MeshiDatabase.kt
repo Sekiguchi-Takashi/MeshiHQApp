@@ -13,9 +13,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FactSource::class,
         PendingChange::class,
         Photo::class,
-        MenuItem::class
+        MenuItem::class,
+        Visit::class,
+        Collection::class,
+        CollectionShop::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class MeshiDatabase : RoomDatabase() {
@@ -57,6 +60,48 @@ abstract class MeshiDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `visit` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`shop_id` INTEGER NOT NULL, " +
+                        "`visited_at` INTEGER NOT NULL, " +
+                        "`people` INTEGER NOT NULL, " +
+                        "`amount` INTEGER, " +
+                        "`rating` INTEGER, " +
+                        "`memo` TEXT, " +
+                        "`created_at` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`shop_id`) REFERENCES `shop`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_visit_shop_id` ON `visit` (`shop_id`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `collection` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`created_at` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_collection_name` ON `collection` (`name`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `collection_shop` (" +
+                        "`collection_id` INTEGER NOT NULL, " +
+                        "`shop_id` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`collection_id`, `shop_id`), " +
+                        "FOREIGN KEY(`collection_id`) REFERENCES `collection`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`shop_id`) REFERENCES `shop`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_collection_shop_shop_id` " +
+                        "ON `collection_shop` (`shop_id`)"
+                )
+            }
+        }
+
         @Volatile
         private var instance: MeshiDatabase? = null
 
@@ -66,7 +111,7 @@ abstract class MeshiDatabase : RoomDatabase() {
                     context.applicationContext,
                     MeshiDatabase::class.java,
                     "meshihq.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

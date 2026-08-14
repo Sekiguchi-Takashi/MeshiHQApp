@@ -99,4 +99,44 @@ interface MeshiDao {
 
     @Query("DELETE FROM menu_item WHERE id = :id")
     suspend fun deleteMenuItem(id: Long)
+
+    @Query("SELECT * FROM visit WHERE shop_id = :shopId ORDER BY visited_at DESC")
+    fun observeVisits(shopId: Long): Flow<List<Visit>>
+
+    @Query("SELECT * FROM visit ORDER BY visited_at DESC")
+    fun observeAllVisits(): Flow<List<Visit>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVisit(visit: Visit): Long
+
+    @Query("DELETE FROM visit WHERE id = :id")
+    suspend fun deleteVisit(id: Long)
+
+    @Query("SELECT * FROM collection ORDER BY created_at")
+    fun observeCollections(): Flow<List<Collection>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCollection(collection: Collection): Long
+
+    @Query("DELETE FROM collection WHERE id = :id")
+    suspend fun deleteCollection(id: Long)
+
+    @Query("SELECT collection_id FROM collection_shop WHERE shop_id = :shopId")
+    fun observeCollectionIds(shopId: Long): Flow<List<Long>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun linkCollection(link: CollectionShop)
+
+    @Query("DELETE FROM collection_shop WHERE collection_id = :collectionId AND shop_id = :shopId")
+    suspend fun unlinkCollection(collectionId: Long, shopId: Long)
+
+    @Query(
+        "SELECT shop.* FROM shop INNER JOIN collection_shop " +
+            "ON shop.id = collection_shop.shop_id " +
+            "WHERE collection_shop.collection_id = :collectionId ORDER BY shop.name"
+    )
+    suspend fun shopsInCollection(collectionId: Long): List<Shop>
+
+    @Query("SELECT collection_id AS collectionId, COUNT(*) AS count FROM collection_shop GROUP BY collection_id")
+    fun observeCollectionCounts(): Flow<List<CollectionCount>>
 }

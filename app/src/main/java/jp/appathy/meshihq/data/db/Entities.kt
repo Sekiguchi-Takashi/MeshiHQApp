@@ -130,3 +130,65 @@ data class MenuItem(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long
 )
+
+@Entity(
+    tableName = "visit",
+    foreignKeys = [
+        ForeignKey(
+            entity = Shop::class,
+            parentColumns = ["id"],
+            childColumns = ["shop_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["shop_id"])]
+)
+data class Visit(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "shop_id") val shopId: Long,
+    @ColumnInfo(name = "visited_at") val visitedAt: Long,
+    val people: Int = 1,
+    val amount: Int? = null,
+    val rating: Int? = null,
+    val memo: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long
+)
+
+@Entity(
+    tableName = "collection",
+    indices = [Index(value = ["name"], unique = true)]
+)
+data class Collection(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    @ColumnInfo(name = "created_at") val createdAt: Long
+)
+
+@Entity(
+    tableName = "collection_shop",
+    primaryKeys = ["collection_id", "shop_id"],
+    foreignKeys = [
+        ForeignKey(
+            entity = Collection::class,
+            parentColumns = ["id"],
+            childColumns = ["collection_id"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Shop::class,
+            parentColumns = ["id"],
+            childColumns = ["shop_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["shop_id"])]
+)
+data class CollectionShop(
+    @ColumnInfo(name = "collection_id") val collectionId: Long,
+    @ColumnInfo(name = "shop_id") val shopId: Long
+)
+
+data class CollectionCount(
+    val collectionId: Long,
+    val count: Int
+)
