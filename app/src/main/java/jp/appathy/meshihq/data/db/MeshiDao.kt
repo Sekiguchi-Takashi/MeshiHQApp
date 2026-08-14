@@ -139,4 +139,7 @@ interface MeshiDao {
 
     @Query("SELECT collection_id AS collectionId, COUNT(*) AS count FROM collection_shop GROUP BY collection_id")
     fun observeCollectionCounts(): Flow<List<CollectionCount>>
+
+    @Query("SELECT * FROM collection_shop")
+    fun observeCollectionLinks(): Flow<List<CollectionShop>>
 }

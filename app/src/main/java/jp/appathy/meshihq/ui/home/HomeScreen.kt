@@ -5,6 +5,8 @@ import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -55,6 +58,12 @@ fun HomeScreen(
     val flow = remember(keyword) { repository.searchShops(keyword) }
     val shops by flow.collectAsState(initial = emptyList())
     var location by remember { mutableStateOf<Location?>(null) }
+    var category by remember { mutableStateOf<String?>(null) }
+    var collectionId by remember { mutableStateOf<Long?>(null) }
+    val collectionsFlow = remember { repository.observeCollections() }
+    val linksFlow = remember { repository.observeCollectionLinks() }
+    val collections by collectionsFlow.collectAsState(initial = emptyList())
+    val links by linksFlow.collectAsState(initial = emptyList())
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -76,14 +85,23 @@ fun HomeScreen(
     }
 
     val radius = Prefs.radiusMeters(context)
-    val favorites = shops.filter { it.isFavorite }
+    val memberIds = remember(links, collectionId) {
+        val id = collectionId
+        if (id == null) null else links.filter { it.collectionId == id }.map { it.shopId }.toSet()
+    }
+    val filtered = shops.filter { shop ->
+        (category == null || shop.category == category) &&
+            (memberIds == null || memberIds.contains(shop.id))
+    }
+    val favorites = filtered.filter { it.isFavorite }
     val nearby = if (location != null) {
-        shops.map { it to Geo.distanceMeters(location!!.latitude, location!!.longitude, it.lat, it.lon) }
+        filtered.map { it to Geo.distanceMeters(location!!.latitude, location!!.longitude, it.lat, it.lon) }
             .sortedBy { it.second }
             .filter { it.second <= radius * 4 }
     } else {
-        shops.map { it to -1.0 }
+        filtered.map { it to -1.0 }
     }
+    val categories = remember(shops) { shops.map { it.category }.distinct().sorted() }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("飯HQ") }) },
@@ -101,6 +119,38 @@ fun HomeScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(12.dp)
             )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                FilterChip(
+                    selected = category == null && collectionId == null,
+                    onClick = {
+                        category = null
+                        collectionId = null
+                    },
+                    label = { Text("すべて") }
+                )
+                collections.forEach { collection ->
+                    FilterChip(
+                        selected = collectionId == collection.id,
+                        onClick = {
+                            collectionId = if (collectionId == collection.id) null else collection.id
+                        },
+                        label = { Text(collection.name) }
+                    )
+                }
+                categories.forEach { name ->
+                    FilterChip(
+                        selected = category == name,
+                        onClick = { category = if (category == name) null else name },
+                        label = { Text(name) }
+                    )
+                }
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)
@@ -114,10 +164,12 @@ fun HomeScreen(
                 item {
                     SectionTitle(if (location != null) "近い順" else "最近更新した順")
                 }
-                if (shops.isEmpty()) {
+                if (filtered.isEmpty()) {
                     item {
                         Text(
-                            "まだ店舗がありません。右下の＋か、地図の長押しで登録できます。",
+                            if (shops.isEmpty())
+                                "まだ店舗がありません。右下の＋か、地図の長押しで登録できます。"
+                            else "この絞り込みに合う店舗がありません。",
                             modifier = Modifier.padding(16.dp),
                             style = MaterialTheme.typography.bodyMedium
                         )

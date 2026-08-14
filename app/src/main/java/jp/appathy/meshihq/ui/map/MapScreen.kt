@@ -2,11 +2,18 @@ package jp.appathy.meshihq.ui.map
 
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.OvalShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -17,13 +24,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import jp.appathy.meshihq.Prefs
 import jp.appathy.meshihq.data.repo.ShopRepository
 import jp.appathy.meshihq.domain.Categories
+import jp.appathy.meshihq.domain.Geo
 import jp.appathy.meshihq.ui.LocationUtil
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -42,7 +53,9 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val shopsFlow = remember { repository.observeShops() }
-    val shops by shopsFlow.collectAsState(initial = emptyList())
+    val allShops by shopsFlow.collectAsState(initial = emptyList())
+    var category by remember { mutableStateOf<String?>(null) }
+    val categories = remember(allShops) { allShops.map { it.category }.distinct().sorted() }
 
     val mapView = remember {
         MapView(context).apply {
@@ -60,6 +73,15 @@ fun MapScreen(
     DisposableEffect(Unit) {
         mapView.onResume()
         onDispose { mapView.onPause() }
+    }
+
+    val center = mapView.mapCenter
+    val shops = remember(allShops, category, center.latitude, center.longitude) {
+        val matched = allShops.filter { category == null || it.category == category }
+        if (matched.size <= MARKER_LIMIT) matched
+        else matched
+            .sortedBy { Geo.distanceMeters(center.latitude, center.longitude, it.lat, it.lon) }
+            .take(MARKER_LIMIT)
     }
 
     Scaffold(
@@ -87,8 +109,29 @@ fun MapScreen(
             }
         }
     ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FilterChip(
+                selected = category == null,
+                onClick = { category = null },
+                label = { Text("すべて " + allShops.size) }
+            )
+            categories.forEach { name ->
+                FilterChip(
+                    selected = category == name,
+                    onClick = { category = if (category == name) null else name },
+                    label = { Text(name) }
+                )
+            }
+        }
         AndroidView(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize(),
             factory = { mapView },
             update = { view ->
                 view.overlays.clear()
@@ -115,8 +158,11 @@ fun MapScreen(
                 view.invalidate()
             }
         )
+        }
     }
 }
+
+private const val MARKER_LIMIT = 300
 
 private fun pinDrawable(color: Int): ShapeDrawable {
     val drawable = ShapeDrawable(OvalShape())

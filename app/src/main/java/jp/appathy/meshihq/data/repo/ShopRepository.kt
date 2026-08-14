@@ -179,6 +179,8 @@ class ShopRepository(private val dao: MeshiDao) {
 
     fun observeCollectionIds(shopId: Long): Flow<List<Long>> = dao.observeCollectionIds(shopId)
 
+    fun observeCollectionLinks(): Flow<List<CollectionShop>> = dao.observeCollectionLinks()
+
     suspend fun createCollection(name: String) {
         val trimmed = name.trim()
         if (trimmed.isBlank()) return

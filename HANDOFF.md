@@ -4,7 +4,7 @@
 近所の飲食店を自分のDBに貯めて管理するAndroidアプリ。オントロジー「飲食店マップ管理アプリ」の実装第一弾。
 
 ## 現在地点
-v0.5（統計の期間フィルタ・EXIF撮影日・取込間隔ガードまで）。AI検索／おすすめは未着手。
+v0.6（ホーム・地図の絞り込みまで）。AI検索／おすすめ／通知は未着手。
 
 ## パッケージ名について
 applicationId は `jp.appathy.meshihq2`（namespace は `jp.appathy.meshihq` のまま）。
@@ -65,12 +65,17 @@ applicationId は `jp.appathy.meshihq2`（namespace は `jp.appathy.meshihq` の
 - 記録タブに期間フィルタ（今月／今年／全期間）。来店回数・支払い合計・月別・よく行く店に効く
 - 取込は前回実行から60秒以内なら実行せず案内を出す（Overpassは公共サーバのため）
 
-## 次にやること（v0.6）
+## v0.6で入ったもの
+- ホームにカテゴリ／コレクションの絞り込みチップ。コレクションは `collection_shop` を全件購読してローカルで突き合わせる
+- 地図にカテゴリ絞り込み。ピンは300件を上限とし、超えたら地図中心から近い順に間引く
+- deploy.sh に `git pull --rebase origin main` を追加。CatalogApp の rollout.sh がGitHub API経由で
+  release.yml と ci/appathy.keystore を直接コミットするため、pullなしのpushはrejectされる
+
+## 次にやること（v0.7）
 1. AI検索・おすすめ（BonsaiAppクライアント）。着手前に BONSAI_API.md をこのリポジトリに置くこと。
    契約が手元にない状態でエンドポイントを推測して実装しない
-2. ホームのカテゴリ／コレクション絞り込み
-3. 通知（オントロジーの機能一覧で唯一未着手。何を通知するかの定義から）
-4. 地図のカテゴリ絞り込みと、ピン多数時の間引き
+2. 通知。何を通知するかが未定（候補: しばらく行っていないお気に入り／承認待ちの滞留／営業時間内で近くにいるときの提案）
+3. 承認待ちが0件のときの取込タブの見せ方（今は空リストが出るだけ）
 
 ## ビルド・署名
 push すると GitHub Actions が release APK（未minify）を Artifacts に出す。
