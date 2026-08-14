@@ -77,6 +77,13 @@ applicationId は `jp.appathy.meshihq2`（namespace は `jp.appathy.meshihq` の
 2. 通知。何を通知するかが未定（候補: しばらく行っていないお気に入り／承認待ちの滞留／営業時間内で近くにいるときの提案）
 3. 承認待ちが0件のときの取込タブの見せ方（今は空リストが出るだけ）
 
+## deploy.sh（恒久仕様）
+push とタグ発行までを1コマンドで完結させる形に固定。shebang は Termux のフルパス、`set -e` は付けない。
+`git pull --rebase origin main` は必須（CatalogApp が API 経由で release.yml と ci/appathy.keystore を
+直接コミットするため、無いと push が rejected になる）。
+最新リリースのタグ末尾を +1 したタグを GitHub API で打ち、Actions のビルドと自作アプリストアへの反映につなげる。
+`ci/` と `.github/workflows/release.yml` は削除しないこと。ZIPには同梱していないが、pull で降りてきたものを維持する。
+
 ## ビルド・署名
 push すると GitHub Actions が release APK（未minify）を Artifacts に出す。
 
