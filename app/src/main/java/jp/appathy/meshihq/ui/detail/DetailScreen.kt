@@ -134,6 +134,7 @@ fun DetailScreen(
             }
             when (tabIndex) {
                 0 -> InfoTab(
+                    repository = repository,
                     shop = current,
                     people = people,
                     collections = collections,
@@ -157,6 +158,7 @@ fun DetailScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InfoTab(
+    repository: ShopRepository,
     shop: Shop,
     people: Int,
     collections: List<Collection>,
@@ -177,6 +179,8 @@ private fun InfoTab(
         InfoRow("営業時間", OpeningHours.format(shop.openingHours) ?: shop.openingHoursRaw)
         InfoRow("定休日", shop.closedDays)
         InfoRow("座標", "%.5f, %.5f".format(shop.lat, shop.lon))
+        InfoRow("公式サイト", shop.website)
+        OfficialSiteSection(repository, shop)
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         Text("人数", style = MaterialTheme.typography.titleSmall)
         Row(

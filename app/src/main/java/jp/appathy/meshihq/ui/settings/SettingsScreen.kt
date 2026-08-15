@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -43,6 +44,7 @@ fun SettingsScreen(repository: ShopRepository) {
     val scope = rememberCoroutineScope()
     var radius by remember { mutableIntStateOf(Prefs.radiusMeters(context)) }
     var message by remember { mutableStateOf("") }
+    var hotPepperKey by remember { mutableStateOf(Prefs.hotPepperKey(context)) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -117,6 +119,22 @@ fun SettingsScreen(repository: ShopRepository) {
             ) {
                 Text("地図の初期表示位置を現在地にする")
             }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Text("ホットペッパーAPIキー", style = MaterialTheme.typography.titleSmall)
+            OutlinedTextField(
+                value = hotPepperKey,
+                onValueChange = {
+                    hotPepperKey = it
+                    Prefs.setHotPepperKey(context, it)
+                },
+                label = { Text("リクルートWEBサービスのキー") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            )
+            Text(
+                "webservice.recruit.co.jp で無料発行できます。キーはこの端末内だけに保存されます。",
+                style = MaterialTheme.typography.bodySmall
+            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             Text("データ", style = MaterialTheme.typography.titleSmall)
             Button(

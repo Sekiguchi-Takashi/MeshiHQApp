@@ -41,6 +41,14 @@ object Prefs {
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
             .getFloat("def_lon", 139.7671f).toDouble()
 
+    fun hotPepperKey(context: Context): String =
+        context.getSharedPreferences(NAME, Context.MODE_PRIVATE).getString("hp_key", "").orEmpty()
+
+    fun setHotPepperKey(context: Context, value: String) {
+        context.getSharedPreferences(NAME, Context.MODE_PRIVATE).edit()
+            .putString("hp_key", value.trim()).apply()
+    }
+
     fun lastImportAt(context: Context): Long =
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE).getLong("last_import", 0L)
 

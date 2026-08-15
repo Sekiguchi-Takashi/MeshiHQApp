@@ -10,8 +10,7 @@ import jp.appathy.meshihq.data.db.Photo
 import jp.appathy.meshihq.data.db.PendingChange
 import jp.appathy.meshihq.data.db.Shop
 import jp.appathy.meshihq.data.db.Visit
-import jp.appathy.meshihq.data.remote.OsmCandidate
-import jp.appathy.meshihq.data.remote.OsmCategory
+import jp.appathy.meshihq.data.remote.ImportCandidate
 import jp.appathy.meshihq.domain.Geo
 import jp.appathy.meshihq.domain.OpeningHours
 import jp.appathy.meshihq.domain.SourceType
@@ -201,32 +200,34 @@ class ShopRepository(private val dao: MeshiDao) {
     }
 
     /**
-     * OSM取込。新規は追加し、既存店は値ごとに信頼度を比較して自動更新か承認待ちに振り分ける。
+     * 取込。新規は追加し、既存店は値ごとに信頼度を比較して自動更新か承認待ちに振り分ける。
+     * 取込元（OSM／ホットペッパー）によらず同じ判定を通す。
      */
-    suspend fun importFromOsm(candidates: List<OsmCandidate>): ImportResult {
+    suspend fun importCandidates(candidates: List<ImportCandidate>): ImportResult {
         var added = 0
         var updated = 0
         var pending = 0
         var untouched = 0
         val now = System.currentTimeMillis()
-        val confidence = SourceType.confidenceOf(SourceType.OSM)
 
         for (candidate in candidates) {
-            val existing = dao.getShopByOsmId(candidate.osmId) ?: findSameShop(candidate)
+            val confidence = SourceType.confidenceOf(candidate.sourceType)
+            val existing = dao.getShopByOsmId(candidate.externalId) ?: findSameShop(candidate)
             val incoming = incomingFields(candidate)
 
             if (existing == null) {
-                val parsed = OpeningHours.parse(candidate.openingHoursRaw)
                 val shop = Shop(
                     name = candidate.name,
-                    category = OsmCategory.of(candidate),
+                    category = candidate.category,
                     lat = candidate.lat,
                     lon = candidate.lon,
                     address = candidate.address,
                     phone = candidate.phone,
-                    osmId = candidate.osmId,
-                    openingHours = parsed,
+                    osmId = candidate.externalId,
+                    website = candidate.website,
+                    openingHours = OpeningHours.parse(candidate.openingHoursRaw),
                     openingHoursRaw = candidate.openingHoursRaw,
+                    budgetDinnerMin = candidate.budgetPerPerson,
                     status = "unknown",
                     createdAt = now,
                     updatedAt = now
@@ -235,7 +236,7 @@ class ShopRepository(private val dao: MeshiDao) {
                 dao.insertFacts(
                     incoming.mapNotNull { (field, value) ->
                         if (value.isNullOrBlank()) null
-                        else fact(shopId, field, value, SourceType.OSM, now)
+                        else fact(shopId, field, value, candidate.sourceType, now)
                     }
                 )
                 added++
@@ -244,55 +245,106 @@ class ShopRepository(private val dao: MeshiDao) {
 
             var working: Shop = existing
             var changed = false
-            val queued = mutableListOf<PendingChange>()
-            val newFacts = mutableListOf<FactSource>()
-
             if (working.osmId == null) {
-                working = working.copy(osmId = candidate.osmId)
+                working = working.copy(osmId = candidate.externalId)
+                changed = true
+            }
+            if (working.website == null && candidate.website != null) {
+                working = working.copy(website = candidate.website)
+                changed = true
+            }
+            if (working.openingHoursRaw == null && candidate.openingHoursRaw != null) {
+                working = working.copy(openingHoursRaw = candidate.openingHoursRaw)
                 changed = true
             }
 
-            for ((field, value) in incoming) {
-                if (value.isNullOrBlank()) continue
-                val current = valueOf(working, field)
-                if (current == value) continue
-                val currentConfidence = dao.bestFact(working.id, field)?.confidence
-                    ?: if (current.isNullOrBlank()) 0.0 else 0.5
-                if (current.isNullOrBlank() || confidence >= currentConfidence) {
-                    working = applyField(working, field, value)
-                    newFacts.add(fact(working.id, field, value, SourceType.OSM, now))
-                    changed = true
-                } else {
-                    queued.add(
-                        PendingChange(
-                            shopId = working.id,
-                            fieldName = field,
-                            currentValue = current,
-                            proposedValue = value,
-                            sourceType = SourceType.OSM,
-                            confidence = confidence,
-                            reason = "OSMの値が既存値と異なります（既存の信頼度 $currentConfidence）",
-                            createdAt = now
-                        )
-                    )
-                }
-            }
-
-            if (changed) {
-                if (candidate.openingHoursRaw != null && working.openingHours == null) {
-                    working = working.copy(openingHoursRaw = candidate.openingHoursRaw)
-                }
+            val outcome = applyValues(working, incoming, candidate.sourceType, confidence, now)
+            working = outcome.first
+            if (outcome.second.isNotEmpty() || changed) {
                 dao.upsertShop(working.copy(updatedAt = now))
-                dao.insertFacts(newFacts)
+                dao.insertFacts(outcome.second)
                 updated++
             }
-            if (queued.isNotEmpty()) {
-                dao.insertPending(queued)
-                pending += queued.size
+            if (outcome.third.isNotEmpty()) {
+                dao.insertPending(outcome.third)
+                pending += outcome.third.size
             }
-            if (!changed && queued.isEmpty()) untouched++
+            if (outcome.second.isEmpty() && outcome.third.isEmpty() && !changed) untouched++
         }
         return ImportResult(added, updated, pending, untouched)
+    }
+
+    /** 公式サイトなど、1店舗ぶんの値を取込と同じ判定で反映する。 */
+    suspend fun applyExternalValues(
+        shopId: Long,
+        values: List<Pair<String, String?>>,
+        sourceType: String
+    ): ImportResult {
+        val shop = dao.getShop(shopId) ?: return ImportResult()
+        val now = System.currentTimeMillis()
+        val confidence = SourceType.confidenceOf(sourceType)
+        val outcome = applyValues(shop, values, sourceType, confidence, now)
+        if (outcome.second.isNotEmpty()) {
+            dao.upsertShop(outcome.first.copy(updatedAt = now))
+            dao.insertFacts(outcome.second)
+        }
+        if (outcome.third.isNotEmpty()) dao.insertPending(outcome.third)
+        return ImportResult(
+            updated = if (outcome.second.isEmpty()) 0 else 1,
+            pending = outcome.third.size
+        )
+    }
+
+    suspend fun moveShop(shopId: Long, lat: Double, lon: Double) {
+        val shop = dao.getShop(shopId) ?: return
+        dao.upsertShop(shop.copy(lat = lat, lon = lon, updatedAt = System.currentTimeMillis()))
+    }
+
+    suspend fun setWebsite(shopId: Long, url: String?) {
+        val shop = dao.getShop(shopId) ?: return
+        dao.upsertShop(
+            shop.copy(
+                website = url?.trim()?.takeIf { it.isNotBlank() },
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    private suspend fun applyValues(
+        shop: Shop,
+        values: List<Pair<String, String?>>,
+        sourceType: String,
+        confidence: Double,
+        now: Long
+    ): Triple<Shop, List<FactSource>, List<PendingChange>> {
+        var working = shop
+        val facts = mutableListOf<FactSource>()
+        val queued = mutableListOf<PendingChange>()
+        for ((field, value) in values) {
+            if (value.isNullOrBlank()) continue
+            val current = valueOf(working, field)
+            if (current == value) continue
+            val currentConfidence = dao.bestFact(working.id, field)?.confidence
+                ?: if (current.isNullOrBlank()) 0.0 else 0.5
+            if (current.isNullOrBlank() || confidence >= currentConfidence) {
+                working = applyField(working, field, value)
+                facts.add(fact(working.id, field, value, sourceType, now))
+            } else {
+                queued.add(
+                    PendingChange(
+                        shopId = working.id,
+                        fieldName = field,
+                        currentValue = current,
+                        proposedValue = value,
+                        sourceType = sourceType,
+                        confidence = confidence,
+                        reason = "既存値の信頼度 $currentConfidence を下回るため保留",
+                        createdAt = now
+                    )
+                )
+            }
+        }
+        return Triple(working, facts, queued)
     }
 
     suspend fun approve(pendingId: Long) {
@@ -319,7 +371,7 @@ class ShopRepository(private val dao: MeshiDao) {
 
     suspend fun reject(pendingId: Long) = dao.setPendingState(pendingId, "rejected")
 
-    private suspend fun findSameShop(candidate: OsmCandidate): Shop? {
+    private suspend fun findSameShop(candidate: ImportCandidate): Shop? {
         val delta = 0.0009
         val nearby = dao.getShopsInBounds(
             candidate.lat - delta,
@@ -333,15 +385,17 @@ class ShopRepository(private val dao: MeshiDao) {
         }
     }
 
-    private fun incomingFields(candidate: OsmCandidate): List<Pair<String, String?>> = listOf(
+    private fun incomingFields(candidate: ImportCandidate): List<Pair<String, String?>> = listOf(
         "name" to candidate.name,
-        "category" to OsmCategory.of(candidate),
+        "category" to candidate.category,
         "address" to candidate.address,
         "phone" to candidate.phone,
         "opening_hours" to OpeningHours.parse(candidate.openingHoursRaw)
     )
 
     private fun valueOf(shop: Shop, field: String): String? = when (field) {
+        "website" -> shop.website
+        "opening_hours_raw" -> shop.openingHoursRaw
         "name" -> shop.name
         "category" -> shop.category
         "address" -> shop.address
@@ -354,6 +408,11 @@ class ShopRepository(private val dao: MeshiDao) {
     }
 
     private fun applyField(shop: Shop, field: String, value: String?): Shop = when (field) {
+        "website" -> shop.copy(website = value)
+        "opening_hours_raw" -> shop.copy(
+            openingHoursRaw = value,
+            openingHours = OpeningHours.parse(value) ?: shop.openingHours
+        )
         "name" -> shop.copy(name = value ?: shop.name)
         "category" -> shop.copy(category = value ?: shop.category)
         "address" -> shop.copy(address = value)

@@ -55,12 +55,14 @@ object SourceType {
     const val OFFICIAL = "official"
     const val OSM = "osm"
     const val AI_ESTIMATE = "ai_estimate"
+    const val HOTPEPPER = "hotpepper"
     const val OCR = "ocr"
     const val HEARSAY = "hearsay"
 
     fun confidenceOf(type: String): Double = when (type) {
         SELF_VISIT -> 1.0
         OFFICIAL -> 0.9
+        HOTPEPPER -> 0.8
         OCR -> 0.7
         OSM -> 0.6
         AI_ESTIMATE -> 0.4
@@ -70,6 +72,7 @@ object SourceType {
     fun labelOf(type: String): String = when (type) {
         SELF_VISIT -> "自分で確認"
         OFFICIAL -> "公式情報"
+        HOTPEPPER -> "ホットペッパー"
         OCR -> "写真OCR"
         OSM -> "OSM取込"
         AI_ESTIMATE -> "AI推定"

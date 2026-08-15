@@ -24,6 +24,7 @@ data class Shop(
     val address: String? = null,
     val phone: String? = null,
     @ColumnInfo(name = "osm_id") val osmId: String? = null,
+    val website: String? = null,
     @ColumnInfo(name = "opening_hours") val openingHours: String? = null,
     @ColumnInfo(name = "opening_hours_raw") val openingHoursRaw: String? = null,
     @ColumnInfo(name = "closed_days") val closedDays: String? = null,

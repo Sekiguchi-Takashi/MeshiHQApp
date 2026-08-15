@@ -1,5 +1,6 @@
 package jp.appathy.meshihq.data.remote
 
+import jp.appathy.meshihq.domain.SourceType
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -50,6 +51,20 @@ object OverpassClient {
         }
         connection.disconnect()
         return parse(body)
+    }
+
+    fun toCandidates(list: List<OsmCandidate>): List<ImportCandidate> = list.map { candidate ->
+        ImportCandidate(
+            externalId = candidate.osmId,
+            name = candidate.name,
+            lat = candidate.lat,
+            lon = candidate.lon,
+            category = OsmCategory.of(candidate),
+            address = candidate.address,
+            phone = candidate.phone,
+            openingHoursRaw = candidate.openingHoursRaw,
+            sourceType = SourceType.OSM
+        )
     }
 
     fun parse(body: String): List<OsmCandidate> {
