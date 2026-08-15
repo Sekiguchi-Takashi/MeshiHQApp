@@ -106,8 +106,10 @@ push とタグ発行までを1コマンドで完結させる形に固定。sheba
 - **配布**: タグ push → release.yml が `assembleRelease` → `apksigner` で `ci/appathy.keystore`
   （pass: appathy-store / alias: appathy）に署名し直して Release を作る。
   したがって release ビルドに signingConfig は設定しない（未署名で出し、Actions側で署名する）
-- **手元確認**: 通常 push → build.yml が `assembleDebug`。`keystore/meshihq.jks` で署名し、
-  applicationId に `.debug` を付けるので配布版と共存できる（データは別）
+- **手元確認**: 通常 push → build.yml が `assembleDebug`。コンパイルが通るかの確認用と割り切り、
+  `actions/upload-artifact` は置かない（Artifactsストレージ無料枠0.5GBが枯渇して
+  "Artifact storage quota has been hit" でビルドが落ちるため）。APKはRelease経由で配布する。
+  debugビルドは `keystore/meshihq.jks` 署名かつ applicationId に `.debug` が付くので配布版と共存できる（データは別）
 - versionName はタグ系列に合わせる。次のタグは v1.3.4 の想定
 
 ## 旧ビルド・署名メモ
