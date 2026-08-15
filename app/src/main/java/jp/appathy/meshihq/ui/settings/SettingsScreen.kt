@@ -59,7 +59,8 @@ fun SettingsScreen(repository: ShopRepository) {
             val count = withContext(Dispatchers.IO) {
                 val shops = repository.getAllShops()
                 val menus = shops.associate { it.id to repository.getMenu(it.id) }
-                BonsaiExport.exportAll(context, uri, shops, menus)
+                val visits = shops.associate { it.id to repository.getVisits(it.id) }
+                BonsaiExport.exportAll(context, uri, shops, menus, visits)
             }
             message = "${count}件をBonsai資料形式（frontmatter付きMarkdown）とshops.jsonで書き出しました。"
         }

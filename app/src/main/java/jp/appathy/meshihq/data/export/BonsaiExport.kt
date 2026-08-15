@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import jp.appathy.meshihq.data.db.MenuItem
 import jp.appathy.meshihq.data.db.Shop
+import jp.appathy.meshihq.data.db.Visit
 import jp.appathy.meshihq.domain.Budget
 import jp.appathy.meshihq.domain.OpeningHours
 import jp.appathy.meshihq.domain.ShopStatus
@@ -26,7 +27,8 @@ object BonsaiExport {
         context: Context,
         treeUri: Uri,
         shops: List<Shop>,
-        menus: Map<Long, List<MenuItem>> = emptyMap()
+        menus: Map<Long, List<MenuItem>> = emptyMap(),
+        visits: Map<Long, List<Visit>> = emptyMap()
     ): Int {
         val tree = DocumentFile.fromTreeUri(context, treeUri) ?: return 0
         var count = 0
@@ -35,7 +37,10 @@ object BonsaiExport {
             tree.findFile(fileName)?.delete()
             val file = tree.createFile("text/markdown", fileName) ?: continue
             context.contentResolver.openOutputStream(file.uri)?.use { out ->
-                out.write(toMarkdown(shop, menus[shop.id].orEmpty()).toByteArray(Charsets.UTF_8))
+                out.write(
+                    toMarkdown(shop, menus[shop.id].orEmpty(), visits[shop.id].orEmpty())
+                        .toByteArray(Charsets.UTF_8)
+                )
             }
             count++
         }
@@ -43,7 +48,11 @@ object BonsaiExport {
         return count
     }
 
-    fun toMarkdown(shop: Shop, menu: List<MenuItem> = emptyList()): String {
+    fun toMarkdown(
+        shop: Shop,
+        menu: List<MenuItem> = emptyList(),
+        visits: List<Visit> = emptyList()
+    ): String {
         val sb = StringBuilder()
         sb.append("---\n")
         sb.append("type: shop\n")
@@ -64,7 +73,16 @@ object BonsaiExport {
         line(sb, "定休日", shop.closedDays)
         line(sb, "予算（昼）", Budget.label(shop.budgetLunchMin, shop.budgetLunchMax))
         line(sb, "予算（夜）", Budget.label(shop.budgetDinnerMin, shop.budgetDinnerMax))
+        line(sb, "公式サイト", shop.website)
         line(sb, "お気に入り", if (shop.isFavorite) "はい" else "いいえ")
+        if (visits.isNotEmpty()) {
+            val ratings = visits.mapNotNull { it.rating }
+            line(sb, "来店回数", visits.size.toString() + "回")
+            line(sb, "最終来店", dateFormat.format(Date(visits.maxOf { it.visitedAt })))
+            if (ratings.isNotEmpty()) {
+                line(sb, "平均評価", "%.1f".format(ratings.average()))
+            }
+        }
         if (menu.isNotEmpty()) {
             sb.append("\n## メニュー\n\n")
             menu.forEach { item ->

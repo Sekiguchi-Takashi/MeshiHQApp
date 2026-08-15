@@ -56,6 +56,10 @@ fun ImportScreen(
     val scope = rememberCoroutineScope()
     val pendingFlow = remember { repository.observePendingChanges() }
     val pending by pendingFlow.collectAsState(initial = emptyList())
+    val shopsFlow = remember { repository.observeShops() }
+    val shops by shopsFlow.collectAsState(initial = emptyList())
+    val untidy = shops.filter { it.status == "unknown" || it.category == "その他" }
+    var showTidy by remember { mutableStateOf(false) }
     var source by remember { mutableStateOf("osm") }
     var radius by remember { mutableIntStateOf(1000) }
     var keyword by remember { mutableStateOf("鳴尾") }
@@ -253,6 +257,29 @@ fun ImportScreen(
                                 }
                             }
                         }
+                    }
+                }
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "要整理 ${untidy.size}件（未確認・カテゴリその他）",
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (untidy.isNotEmpty()) {
+                            OutlinedButton(onClick = { showTidy = !showTidy }) {
+                                Text(if (showTidy) "閉じる" else "開く")
+                            }
+                        }
+                    }
+                }
+                if (showTidy) {
+                    items(untidy, key = { "tidy" + it.id }) { shop ->
+                        TidyRow(repository, shop, onOpenShop)
                     }
                 }
             }

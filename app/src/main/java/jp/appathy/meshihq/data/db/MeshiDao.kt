@@ -106,6 +106,9 @@ interface MeshiDao {
     @Query("SELECT * FROM visit ORDER BY visited_at DESC")
     fun observeAllVisits(): Flow<List<Visit>>
 
+    @Query("SELECT * FROM visit WHERE shop_id = :shopId ORDER BY visited_at DESC")
+    suspend fun getVisits(shopId: Long): List<Visit>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVisit(visit: Visit): Long
 

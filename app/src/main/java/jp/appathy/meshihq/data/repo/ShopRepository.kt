@@ -172,6 +172,23 @@ class ShopRepository(private val dao: MeshiDao) {
 
     suspend fun deleteVisit(id: Long) = dao.deleteVisit(id)
 
+    suspend fun getVisits(shopId: Long): List<Visit> = dao.getVisits(shopId)
+
+    /** 整理画面からの手直し。手入力扱い（信頼度1.0）で記録するので、以後の取込では上書きされない。 */
+    suspend fun setCategory(shopId: Long, category: String) {
+        val shop = dao.getShop(shopId) ?: return
+        val now = System.currentTimeMillis()
+        dao.upsertShop(shop.copy(category = category, updatedAt = now))
+        dao.insertFacts(listOf(fact(shopId, "category", category, SourceType.SELF_VISIT, now)))
+    }
+
+    suspend fun setStatus(shopId: Long, status: String) {
+        val shop = dao.getShop(shopId) ?: return
+        val now = System.currentTimeMillis()
+        dao.upsertShop(shop.copy(status = status, updatedAt = now))
+        dao.insertFacts(listOf(fact(shopId, "status", status, SourceType.SELF_VISIT, now)))
+    }
+
     fun observeCollections(): Flow<List<Collection>> = dao.observeCollections()
 
     fun observeCollectionCounts(): Flow<List<CollectionCount>> = dao.observeCollectionCounts()
