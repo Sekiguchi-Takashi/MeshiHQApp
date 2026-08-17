@@ -4,7 +4,7 @@
 近所の飲食店を自分のDBに貯めて管理するAndroidアプリ。オントロジー「飲食店マップ管理アプリ」の実装第一弾。
 
 ## 現在地点
-v1.3.7（取込後の整理導線とエクスポート充実まで）。AI検索／おすすめ／通知は未着手。
+v1.3.8（納品規約の反映まで）。機能面は v1.3.7 と同じ。AI検索／おすすめ／通知は未着手。
 バージョンはタグ系列に合わせている（v0.6 → v1.3.4 で合流）。
 
 ## 取込元と信頼度
@@ -102,14 +102,31 @@ applicationId は `jp.appathy.meshihq2`（namespace は `jp.appathy.meshihq` の
 2. 通知。何を通知するかが未定（候補: しばらく行っていないお気に入り／承認待ちの滞留／営業時間内で近くにいるときの提案）
 3. 承認待ちが0件のときの取込タブの見せ方（今は空リストが出るだけ）
 
-## deploy.sh（恒久仕様）
+## 納品規約（恒久）
+1. deploy.sh は push → pull --rebase → タグ発行まで。次タグは `git tag --list 'v*' | sort -V` の最大値から
+   算出し、`git tag` / `git push origin <タグ>` でローカル発行する。GitHub API の heads 参照は反映遅延で
+   一つ前のコミットに付くため使わない。第2引数 `notag` で push のみ
+2. build.yml は作らない。CI は release.yml（タグ起動）のみ。`actions/upload-artifact` は使わない
+   （Artifacts枠0.5GBが枯渇して全ビルドが落ちる）
+3. `ci/` と `.github/workflows/release.yml` は削除・追跡解除しない
+4. ファイルを削除する納品では deploy.sh に `rm -f <対象パス>` を足す（unzip -o は端末の旧ファイルを消さない）
+5. 納品はバージョン番号付きZIP＋実行4行ブロック。冒頭に【本番】か【テスト】を明示。
+   シェルは echo 禁止・対話入力禁止・トークンをチャットに貼らせない
+
+## deploy.sh（旧メモ）
 push とタグ発行までを1コマンドで完結させる形に固定。shebang は Termux のフルパス、`set -e` は付けない。
 `git pull --rebase origin main` は必須（CatalogApp が API 経由で release.yml と ci/appathy.keystore を
 直接コミットするため、無いと push が rejected になる）。
 最新リリースのタグ末尾を +1 したタグを GitHub API で打ち、Actions のビルドと自作アプリストアへの反映につなげる。
 `ci/` と `.github/workflows/release.yml` は削除しないこと。ZIPには同梱していないが、pull で降りてきたものを維持する。
 
-## ビルドの2レーン（v1.3.4以降）
+## ビルド（v1.3.8以降）
+配布はタグ push → release.yml が `assembleRelease` → `apksigner` で `ci/appathy.keystore`
+（pass: appathy-store / alias: appathy）に署名し直して Release を作る。release ビルドに signingConfig は置かない。
+debug ビルドは手元のコンパイル確認用で、`keystore/meshihq.jks` 署名かつ applicationId に `.debug` が付くため
+配布版と共存できる。build.yml は廃止したので、CIで走るのは release.yml だけ。
+
+## 旧: ビルドの2レーン（v1.3.4〜v1.3.7）
 - **配布**: タグ push → release.yml が `assembleRelease` → `apksigner` で `ci/appathy.keystore`
   （pass: appathy-store / alias: appathy）に署名し直して Release を作る。
   したがって release ビルドに signingConfig は設定しない（未署名で出し、Actions側で署名する）
